@@ -18,7 +18,16 @@ const Project = () => {
   const [projectFetch, setProjectFetch] = useState(location.state.project);
   const [message, setMessage] = useState([]);
   const { user } = useContext(UserContext);
-  console.log(user);
+
+  // user testing
+
+  function ExampleComponent({ user }) {
+    useEffect(() => {
+      console.log(user);
+    }, [user]); // dependency
+
+    return <div>Hello, {user?.name}</div>;
+  }
 
   function send() {
     sendMessage("project-message", {
@@ -132,7 +141,7 @@ const Project = () => {
                   type="text"
                   placeholder="Message"
                   value={message}
-                  onClick={(e) => setMessage(e.target.value)}
+                  onChange={(e) => setMessage(e.target.value)}
                   className="flex-grow px-4 py-2 text-sm outline-none bg-white"
                 />
                 <button className="w-12 h-11 bg-blue-600 flex items-center justify-center hover:bg-blue-700 transition">

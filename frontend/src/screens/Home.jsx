@@ -1,17 +1,13 @@
-import React, { useContext, useState, useEffect } from "react";
-import { UserContext } from "../context/User.Context";
+import React, { useState, useEffect } from "react";
 import axios from "../config/axios.js";
 import { useNavigate } from "react-router-dom";
 
 const Home = () => {
-  const { user } = useContext(UserContext);
   const [isModelOpen, setIsModelOpen] = useState(false);
   const [projectName, setProjectName] = useState("");
   const [project, setProject] = useState([]);
   const navigate = useNavigate();
-  console.log(user);
 
-  function cretateProject(e) {}
   useEffect(() => {
     axios
       .get("/all")

@@ -20,8 +20,7 @@ const Login = () => {
         password,
       })
       .then((res) => {
-        console.log(res.data.user);
-
+        console.log(res.data);
         localStorage.setItem("token", res.data.token);
         setUser(res.data.user);
 
