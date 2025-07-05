@@ -20,10 +20,13 @@ const Login = () => {
         password,
       })
       .then((res) => {
-        console.log(res.data);
         localStorage.setItem("token", res.data.token);
-        setUser(res.data.user);
-
+        const userObj = {
+          user: res.data.user,
+          token: res.data.token,
+        };
+        setUser(userObj);
+        localStorage.setItem("userContext", JSON.stringify(userObj));
         navigate("/");
       })
       .catch((err) => {

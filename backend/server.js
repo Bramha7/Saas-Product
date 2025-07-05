@@ -7,6 +7,7 @@ import jwt from "jsonwebtoken";
 import { Server } from "socket.io";
 import mongoose from "mongoose";
 import projectmodel from "./models/project.model.js";
+import { generateResult } from "./services/ai.service.js";
 
 connect();
 
@@ -17,7 +18,7 @@ const server = http.createServer(app);
 // socket.io
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:5173"],
+    origin: "*",
   },
 });
 
@@ -45,23 +46,45 @@ io.use(async (socket, next) => {
     }
     socket.user = decoded;
     next();
-  } catch (err) {}
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
 });
 
+// socket connection
 io.on("connection", (socket) => {
+  socket.roomId = socket.project._id.toString();
+
   console.log("a user connected");
 
-  socket.join(socket.project._id);
+  socket.join(socket.roomId);
 
-  socket.on("project-message", (data) => {
-    socket.broadcast.to(socket.project._id).emit("project-message");
+  socket.on("project-message", async (data) => {
+    const message = data.message;
+    const aiPresnetInMessage = message.includes("@ai");
+
+    socket.broadcast.to(socket.roomId).emit("project-message", data);
+
+    if (aiPresnetInMessage) {
+      const prompt = message.replace("@ai", "");
+      const result = await generateResult(prompt);
+
+      io.to(socket.roomId).emit("project-message", {
+        message: result,
+        sender: {
+          _id: "ai",
+          name: "AI",
+        },
+      });
+      return;
+    }
   });
 
-  socket.on("event", (data) => {
-    /* … */
-  });
   socket.on("disconnect", () => {
     /* … */
+    console.log("user-disconnected");
+    socket.leave(socket.roomId);
   });
 });
 server.listen(port, () => {

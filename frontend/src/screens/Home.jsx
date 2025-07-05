@@ -12,7 +12,6 @@ const Home = () => {
     axios
       .get("/all")
       .then((res) => {
-        console.log(res.data);
         setProject(res.data.projects);
       })
       .catch((err) => {

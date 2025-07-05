@@ -5,6 +5,7 @@ import router from "./routes/user.routes.js";
 import cookieParser from "cookie-parser";
 import projectroutes from "./routes/project.routes.js";
 import cors from "cors";
+import airoutes from "./routes/ai.routes.js";
 
 const app = express();
 
@@ -18,6 +19,9 @@ app.use(cookieParser()); // 5. Parse cookies
 // 6. Routes
 app.use("/api/v2", router);
 app.use("/api/v2", projectroutes);
+// ai
+//
+app.use("/api/v2/ai", airoutes);
 
 app.get("/", (req, res) => {
   res.send("Hello world");

@@ -1,5 +1,5 @@
 import axios from "../config/axios.js";
-import { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState, useContext, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { UserContext } from "../context/User.Context.jsx";
 import {
@@ -7,6 +7,10 @@ import {
   sendMessage,
   receiveMessage,
 } from "../config/socket.js";
+import Markdown from "markdown-to-jsx";
+
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 const Project = () => {
   const location = useLocation();
@@ -16,35 +20,31 @@ const Project = () => {
   const [projects, setProjects] = useState([]);
   const [addedUsers, setAddedUsers] = useState([]);
   const [projectFetch, setProjectFetch] = useState(location.state.project);
-  const [message, setMessage] = useState([]);
+  const [message, setMessage] = useState("");
+  const [messages, setMessages] = useState([]);
   const { user } = useContext(UserContext);
-
-  // user testing
-
-  function ExampleComponent({ user }) {
-    useEffect(() => {
-      console.log(user);
-    }, [user]); // dependency
-
-    return <div>Hello, {user?.name}</div>;
-  }
+  const messageBox = useRef();
 
   function send() {
-    sendMessage("project-message", {
+    const data = {
       message,
-      sender: user._id,
-    });
+      sender: user?.user?._id,
+      senderEmail: user?.user?.email,
+    };
+    sendMessage("project-message", data);
+    setMessages((prev) => [...prev, data]);
     setMessage("");
   }
 
   useEffect(() => {
     initializeSocket(projectFetch._id);
+
     receiveMessage("project-message", (data) => {
-      console.log(data);
+      setMessages((prev) => [...prev, data]);
     });
+
     axios.get(`/fetch/${location.state.project._id}`).then((res) => {
       setProjectFetch(res.data.project);
-      // Initialize addedUsers with current collaborators from fetched project
       setAddedUsers(res.data.project.users || []);
     });
 
@@ -57,6 +57,12 @@ const Project = () => {
         console.error("Error fetching projects:", err);
       });
   }, []);
+
+  useEffect(() => {
+    if (messageBox.current) {
+      messageBox.current.scrollTop = messageBox.current.scrollHeight;
+    }
+  }, [messages]);
 
   const toggleUserSelect = (user) => {
     setSelectedUserIds((prev) =>
@@ -85,7 +91,6 @@ const Project = () => {
         })
         .catch((err) => {
           console.error("Failed to add collaborators:", err);
-          console.log(location.state.project._id);
         });
     }
   };
@@ -111,7 +116,6 @@ const Project = () => {
             </button>
           </header>
 
-          {/* Show Added Collaborators count only */}
           {addedUsers.length > 0 && (
             <div className="bg-slate-100 p-4 border-b">
               <h2 className="font-medium mb-2 text-slate-700">
@@ -121,18 +125,60 @@ const Project = () => {
           )}
 
           <div className="conversation-area pt-14 pb-10 flex-grow flex flex-col h-full relative">
-            <div className="message-box p-1 flex-grow flex flex-col gap-2 overflow-auto max-h-full scrollbar-hide">
-              <div className="incomming flex flex-col bg-white w-fit max-w-[90%] px-3 py-2 rounded-md">
-                <small className="text-xs text-slate-500">
-                  example@gmail.com
-                </small>
-                <p className="text-sm">Hello</p>
-              </div>
-
-              <div className="messages flex flex-col bg-blue-100 w-fit max-w-[90%] self-end px-3 py-2 rounded-md text-left">
-                <small className="text-xs text-slate-500">you@gmail.com</small>
-                <p className="text-sm">This should now appear on the right</p>
-              </div>
+            <div
+              ref={messageBox}
+              className="message-box p-1 flex-grow flex flex-col gap-2 overflow-auto max-h-full scrollbar-hide"
+            >
+              {messages.map((msg, index) => {
+                const isCurrentUser = msg.sender === user?.user?._id;
+                return (
+                  <div
+                    key={index}
+                    className={`${
+                      isCurrentUser
+                        ? "messages self-end bg-blue-100"
+                        : "incomming bg-white"
+                    } flex flex-col w-fit max-w-[90%] px-3 py-2 rounded-md`}
+                  >
+                    <small className="text-xs text-slate-500">
+                      {msg.senderEmail || "unknown@email.com"}
+                    </small>
+                    {msg.sender?._id === "ai" ? (
+                      <Markdown
+                        options={{
+                          overrides: {
+                            code: {
+                              component: ({ className, children }) => {
+                                const language =
+                                  className?.replace("lang-", "") ||
+                                  "plaintext";
+                                return (
+                                  <SyntaxHighlighter
+                                    language={language}
+                                    style={oneDark} // VS Code-like theme
+                                    customStyle={{
+                                      padding: "1rem",
+                                      borderRadius: "8px",
+                                      fontSize: "0.85rem",
+                                      backgroundColor: "#1e1e1e",
+                                    }}
+                                  >
+                                    {children}
+                                  </SyntaxHighlighter>
+                                );
+                              },
+                            },
+                          },
+                        }}
+                      >
+                        {msg.message}
+                      </Markdown>
+                    ) : (
+                      <p className="text-sm">{msg.message}</p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             <div className="inputField w-full flex absolute bottom-0 p-3 bg-white border-t">
@@ -144,17 +190,16 @@ const Project = () => {
                   onChange={(e) => setMessage(e.target.value)}
                   className="flex-grow px-4 py-2 text-sm outline-none bg-white"
                 />
-                <button className="w-12 h-11 bg-blue-600 flex items-center justify-center hover:bg-blue-700 transition">
-                  <i
-                    className="ri-send-plane-2-fill text-white text-lg"
-                    onClick={send}
-                  ></i>
+                <button
+                  className="w-12 h-11 bg-blue-600 flex items-center justify-center hover:bg-blue-700 transition"
+                  onClick={send}
+                >
+                  <i className="ri-send-plane-2-fill text-white text-lg"></i>
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Side Panel */}
           <div
             className={`sidepanel w-100 h-full bg-slate-50 absolute top-0 transition-all duration-300 ${
               isSidePanelOpen ? "-translate-x-0" : "-translate-x-full"
@@ -184,7 +229,6 @@ const Project = () => {
             </div>
           </div>
 
-          {/* Collaborators Modal */}
           {isModalOpen && (
             <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
               <div className="bg-white rounded-lg shadow-lg max-w-sm w-full p-6 max-h-[80vh] overflow-y-auto relative">
